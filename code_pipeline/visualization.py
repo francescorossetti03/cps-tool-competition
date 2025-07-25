@@ -1,12 +1,11 @@
+import matplotlib
+matplotlib.use('TkAgg')
 from matplotlib import pyplot as plt
 import matplotlib.patches as patches
 from shapely.geometry import LineString, Polygon
 from shapely.affinity import translate, rotate
-from descartes import PolygonPatch
-from math import atan2, pi, degrees
+from math import atan2, degrees
 
-
-# https://stackoverflow.com/questions/34764535/why-cant-matplotlib-plot-in-a-different-thread
 class RoadTestVisualizer:
     """
         Visualize and Plot RoadTests
@@ -19,91 +18,75 @@ class RoadTestVisualizer:
         self.map_size = map_size
         self.last_submitted_test_figure = None
 
-        # Make sure there's a windows and does not block anything when calling show
         plt.ion()
         plt.show()
 
     def _setup_figure(self):
         if self.last_submitted_test_figure is not None:
-            # Make sure we operate on the right figure
             plt.figure(self.last_submitted_test_figure.number)
             plt.clf()
         else:
             self.last_submitted_test_figure = plt.figure()
 
-        # plt.gcf().set_title("Last Generated Test")
         plt.gca().set_aspect('equal', 'box')
         plt.gca().set(xlim=(-30, self.map_size + 30), ylim=(-30, self.map_size + 30))
 
-    def visualize_road_test(self, the_test):
+    def _add_polygon_patch(self, polygon, facecolor='gray', edgecolor='dimgray'):
+        """Utility function to add a Shapely Polygon to the matplotlib plot."""
+        if not polygon.is_empty:
+            if polygon.geom_type == 'Polygon':
+                patch = patches.Polygon(list(polygon.exterior.coords), closed=True, facecolor=facecolor, edgecolor=edgecolor)
+                plt.gca().add_patch(patch)
+                for interior in polygon.interiors:
+                    hole_patch = patches.Polygon(list(interior.coords), closed=True, facecolor='white', edgecolor=edgecolor)
+                    plt.gca().add_patch(hole_patch)
+            elif polygon.geom_type == 'MultiPolygon':
+                for poly in polygon.geoms:
+                    self._add_polygon_patch(poly, facecolor=facecolor, edgecolor=edgecolor)
 
+    def visualize_road_test(self, the_test):
         self._setup_figure()
 
-        # Add information about the test validity
+        # Title: test validity
         title_string = ""
         if the_test.is_valid is not None:
-            title_string = title_string + "Test is " + ("valid" if the_test.is_valid else "invalid")
+            title_string = "Test is " + ("valid" if the_test.is_valid else "invalid")
             if not the_test.is_valid:
-                title_string = title_string + ":" + the_test.validation_message
-
+                title_string += ": " + the_test.validation_message
         plt.suptitle(title_string, fontsize=14)
-        plt.draw()
-        plt.pause(0.001)
-        
-        # Plot the map. Trying to re-use an artist in more than one Axes which is supported
+
+        # Map boundary
         map_patch = patches.Rectangle((0, 0), self.map_size, self.map_size, linewidth=1, edgecolor='black', facecolor='none')
         plt.gca().add_patch(map_patch)
 
-
-        # Road Geometry.
-        road_poly = LineString([(t[0], t[1]) for t in the_test.interpolated_points]).buffer(8.0, cap_style=2, join_style=2)
-        road_patch = PolygonPatch(road_poly, fc='gray', ec='dimgray')  # ec='#555555', alpha=0.5, zorder=4)
-        plt.gca().add_patch(road_patch )
+        # Road geometry (buffer around path)
+        road_line = LineString([(t[0], t[1]) for t in the_test.interpolated_points])
+        road_poly = road_line.buffer(8.0, cap_style=2, join_style=2)
+        self._add_polygon_patch(road_poly, facecolor='gray', edgecolor='dimgray')
 
         # Interpolated Points
         sx = [t[0] for t in the_test.interpolated_points]
         sy = [t[1] for t in the_test.interpolated_points]
-        plt.plot(sx, sy, 'yellow')
+        plt.plot(sx, sy, color='yellow')
 
         # Road Points
         x = [t[0] for t in the_test.road_points]
         y = [t[1] for t in the_test.road_points]
         plt.plot(x, y, 'wo')
 
-        # Plot the little triangle indicating the starting position of the ego-vehicle
+        # Starting triangle (ego start)
         delta_x = sx[1] - sx[0]
         delta_y = sy[1] - sy[0]
+        angle_start = degrees(atan2(delta_y, delta_x))
+        start_shape = translate(rotate(self.little_triangle, angle=angle_start, origin=(0, 0)), xoff=sx[0], yoff=sy[0])
+        self._add_polygon_patch(start_shape, facecolor='black', edgecolor='black')
 
-        current_angle = atan2(delta_y, delta_x)
-
-        rotation_angle = degrees(current_angle)
-        transformed_fov = rotate(self.little_triangle, origin=(0, 0), angle=rotation_angle)
-        transformed_fov = translate(transformed_fov, xoff=sx[0], yoff=sy[0])
-        plt.plot(*transformed_fov.exterior.xy, color='black')
-
-        # Plot the little square indicating the ending position of the ego-vehicle
+        # Ending square (ego end)
         delta_x = sx[-1] - sx[-2]
         delta_y = sy[-1] - sy[-2]
+        angle_end = degrees(atan2(delta_y, delta_x))
+        end_shape = translate(rotate(self.square, angle=angle_end, origin=(0, 0)), xoff=sx[-1], yoff=sy[-1])
+        self._add_polygon_patch(end_shape, facecolor='black', edgecolor='black')
 
-        current_angle = atan2(delta_y, delta_x)
-
-        rotation_angle = degrees(current_angle)
-        transformed_fov = rotate(self.square, origin=(0, 0), angle=rotation_angle)
-        transformed_fov = translate(transformed_fov, xoff=sx[-1], yoff=sy[-1])
-        plt.plot(*transformed_fov.exterior.xy, color='black')
-
-
-        # Add information about the test validity
-        title_string = ""
-        if the_test.is_valid is not None:
-            title_string = " ".join([title_string, "Test", str(the_test.id), "is" , ("valid" if the_test.is_valid else "invalid")])
-            if not the_test.is_valid:
-                title_string = title_string + ":" + the_test.validation_message
-
-        plt.suptitle(title_string, fontsize=14)
         plt.draw()
         plt.pause(0.001)
-
-
-
-
