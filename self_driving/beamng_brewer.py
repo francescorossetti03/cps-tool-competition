@@ -15,15 +15,24 @@ class BeamNGCamera:
         self.pose: BeamNGPose = BeamNGPose()
         self.camera = camera
         if not self.camera:
-            self.camera = Camera((0, 0, 0), (0, 0, 0), 120, (1280, 1280), colour=True, depth=True, annotation=True)
+            self.camera = Camera(
+                str='cam1',
+                bng=beamng,
+                pos=(0, 0, 0),
+                dir=(0, 0, 0),
+                field_of_view_y=120,
+                resolution=(1280, 1280),
+                is_render_colours=True,
+                is_render_depth=True,
+                is_render_annotations=True
+                )
         self.beamng = beamng
 
     def get_rgb_image(self):
         self.camera.pos = self.pose.pos
         self.camera.direction = self.pose.rot
-        cam = self.beamng.render_cameras()
-        img = cam[self.name]['colour'].convert('RGB')
-        return img
+        cam_data = self.camera.poll()
+        return cam_data['colour'].convert('RGB')
 
 
 class BeamNGBrewer:
@@ -31,7 +40,7 @@ class BeamNGBrewer:
         self.scenario = None
 
         # This is used to bring up each simulation without restarting the simulator
-        self.beamng = BeamNGpy('localhost', 64256, home=beamng_home, user=beamng_user)
+        self.beamng: BeamNGpy = BeamNGpy('localhost', 64256, home=beamng_home, user=beamng_user)
         self.beamng.open(launch=True)
 
         # We need to wait until this point otherwise the BeamNG logger level will be (re)configured by BeamNGpy
@@ -72,8 +81,8 @@ class BeamNGBrewer:
         self.beamng.set_deterministic()
         # self.beamng.set_steps_per_second(120)  # Set simulator to 60hz temporal resolution
         # self.beamng.remove_step_limit()
-        self.beamng.load_scenario(self.scenario)
+        self.beamng.scenario.load(self.scenario)
 
-        self.beamng.start_scenario()
+        self.beamng.scenario.start()
 
-        self.beamng.pause()
+        self.beamng.control.pause()

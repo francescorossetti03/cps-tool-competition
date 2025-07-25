@@ -1,0 +1,1 @@
+python .\competition.py --time-budget 10 --executor beamng --beamng-home C:\BeamNG\BeamNG.tech.v0.35.5.0 --beamng-user C:\Users\franc\AppData\Local\BeamNG.tech --map-size 200 --module-name sample_test_generators.random_generator --class-name RandomTestGenerator
