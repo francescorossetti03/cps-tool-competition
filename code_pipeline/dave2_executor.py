@@ -157,13 +157,18 @@ class Dave2Executor(AbstractTestExecutor):
         self.sim_data_collector.get_simulation_data().start()
 
         try:
-            brewer.bring_up()
+            brewer.bring_up(road_points=nodes)
 
             cameras = BeamNGCarCameras(beamng=beamng, vehicle=self.vehicle)
 
             if not self.model:
                 self.model = load_model(self.model_file)
             predict = NvidiaPrediction(model=self.model, max_speed=self.maxspeed)
+
+            data_img = cameras.cameras_array['cam_center'].poll()
+            while data_img['colour'] is None:
+                data_img = cameras.cameras_array['cam_center'].poll()
+                beamng.step(steps, wait=False)
 
             while True:
 
@@ -222,7 +227,7 @@ class Dave2Executor(AbstractTestExecutor):
                 if self.brewer.beamng.scenario:
                     self.brewer.scenario.close()
                     self.brewer.scenario = None
-                self.brewer.beamng.kill_beamng()
+                self.brewer.beamng._kill_beamng()
 
                 time.sleep(2)
 

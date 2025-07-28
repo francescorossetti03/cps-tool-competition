@@ -5,6 +5,12 @@ from self_driving.image_processing import preprocess
 
 import tensorflow as tf
 
+try:
+    from tensorflow.python.keras.engine import data_adapter
+    data_adapter._is_distributed_dataset = lambda x: False
+except Exception as e:
+    print(e)
+
 
 class NvidiaPrediction:
     def __init__(self, model, max_speed):
@@ -22,7 +28,8 @@ class NvidiaPrediction:
             image = np.array([image])
 
             with tf.device('/cpu:0'):
-                steering_angle = float(self.model.predict(image, batch_size=1, verbose=0))
+                image_tensor = tf.convert_to_tensor(image, dtype=tf.float32)
+                steering_angle = float(self.model.predict(image_tensor, batch_size=1, verbose=0))
 
             speed = car_state.vel_kmh
             if speed > self.speed_limit:
