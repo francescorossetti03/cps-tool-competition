@@ -5,7 +5,7 @@ from numpy.ma import arange
 from shapely.geometry import LineString
 import json
 # Constants
-rounding_precision = 3
+rounding_precision = 6
 interpolation_distance = 1
 smoothness = 0
 min_num_nodes = 20
@@ -17,38 +17,36 @@ def _interpolate(the_test):
     """
     old_x_vals = [t[0] for t in the_test]
     old_y_vals = [t[1] for t in the_test]
+    old_z_vals = [t[2] for t in the_test]
 
-    # This is an approximation based on whatever input is given
-    test_road_lenght = LineString([(t[0], t[1]) for t in the_test]).length
-    num_nodes = int(test_road_lenght / interpolation_distance)
+    test_road_length = LineString([(x, y) for x, y in zip(old_x_vals, old_y_vals)]).length
+
+    num_nodes = int(test_road_length / interpolation_distance)
     if num_nodes < min_num_nodes:
         num_nodes = min_num_nodes
 
     assert len(old_x_vals) >= 2, "You need at leas two road points to define a road"
-    assert len(old_y_vals) >= 2, "You need at leas two road points to define a road"
 
     if len(old_x_vals) == 2:
-        # With two points the only option is a straight segment
         k = 1
     elif len(old_x_vals) == 3:
-        # With three points we use an arc, using linear interpolation will result in invalid road tests
         k = 2
     else:
-        # Otheriwse, use cubic splines
         k = 3
 
-    pos_tck, pos_u = splprep([old_x_vals, old_y_vals], s=smoothness, k=k)
+    pos_tck, _ = splprep([old_x_vals, old_y_vals, old_z_vals], s=smoothness, k=k)
 
     step_size = 1 / num_nodes
     unew = arange(0, 1 + step_size, step_size)
 
-    new_x_vals, new_y_vals = splev(unew, pos_tck)
+    new_x_vals, new_y_vals, new_z_vals = splev(unew, pos_tck)
 
-    # Return the 4-tuple with default z and defatul road width
-    return list(zip([round(v, rounding_precision) for v in new_x_vals],
-                    [round(v, rounding_precision) for v in new_y_vals],
-                    [-28.0 for v in new_x_vals],
-                    [8.0 for v in new_x_vals]))
+    return list(zip(
+        [round(v, rounding_precision) for v in new_x_vals],
+        [round(v, rounding_precision) for v in new_y_vals],
+        [round(v, rounding_precision) for v in new_z_vals],
+        [8.0 for _ in new_x_vals]
+    ))
 
 
 def _incremental_id_generator():
@@ -70,7 +68,7 @@ class RoadTestFactory:
 
         def __init__(self, road_points):
             assert type(road_points) is list, "You must provide a list of road points to create a RoadTest"
-            assert all(len(i) == 2 for i in road_points), "Malformed list of road points"
+            assert all(len(i) == 3 for i in road_points), "Malformed list of road points"
             # The original input
             self.road_points = road_points[:]
             # The interpolated input

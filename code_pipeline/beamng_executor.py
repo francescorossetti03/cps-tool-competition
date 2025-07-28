@@ -149,7 +149,7 @@ class BeamngExecutor(AbstractTestExecutor):
         sim_data_collector.get_simulation_data().start()
 
         try:
-            brewer.bring_up()
+            brewer.bring_up(road_points=nodes)
 
             brewer.vehicle.ai_set_aggression(self.risk_value)
             #  Sets the target speed for the AI in m/s, limit means this is the maximum value (not the reference one)
