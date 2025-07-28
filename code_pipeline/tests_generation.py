@@ -44,7 +44,7 @@ def _interpolate(the_test):
     return list(zip(
         [round(v, rounding_precision) for v in new_x_vals],
         [round(v, rounding_precision) for v in new_y_vals],
-        [round(v, rounding_precision) for v in new_z_vals],
+        [max(round(v, rounding_precision), -28.0) for v in new_z_vals],
         [8.0 for _ in new_x_vals]
     ))
 
