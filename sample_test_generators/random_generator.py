@@ -20,21 +20,30 @@ class RandomTestGenerator():
 
     def start(self):
 
+        DIST_THRESHOLD_LOW = 5.0
+        DIST_THRESHOLD_MED = 20.0
+
+        DELTA_Z_LOW = 2.0
+        DELTA_Z_MED = 5.0
+        DELTA_Z_HIGH = 10.0
+
+        GROUND_LEVEL = -28.0  
+
         def get_z(p0: Tuple[float, float, float], p1: Tuple[float, float]) -> float:
             prev_x, prev_y, prev_z = p0
             curr_x, curr_y = p1
 
             d = dist((prev_x, prev_y), (curr_x, curr_y))
 
-            if d < 5:
-                delta_z = uniform(-2.0, 2.0)
-            elif d < 20:
-                delta_z = uniform(-5.0, 5.0)
+            if d < DIST_THRESHOLD_LOW:
+                delta_z = uniform(-DELTA_Z_LOW, DELTA_Z_LOW)
+            elif d < DIST_THRESHOLD_MED:
+                delta_z = uniform(-DELTA_Z_MED, DELTA_Z_MED)
             else:
-                delta_z = uniform(-10.0, 10.0)
+                delta_z = uniform(-DELTA_Z_HIGH, DELTA_Z_HIGH)
 
             new_z = prev_z + delta_z
-            return round(max(new_z, -28.0), 3)
+            return round(max(new_z, GROUND_LEVEL), 3)
 
         while not self.executor.is_over():
             # Some debugging
@@ -48,7 +57,7 @@ class RandomTestGenerator():
             for i in range(3):
                 x = randint(0, self.map_size)
                 y = randint(0, self.map_size)
-                z = -28.0 if i == 0 else get_z(road_points[-1], (x, y))
+                z = GROUND_LEVEL if i == 0 else get_z(road_points[-1], (x, y))
                 road_points.append((x, y, z))
 
             log.info("Generated test using: %s", road_points)

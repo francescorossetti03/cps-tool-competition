@@ -73,13 +73,13 @@ class BeamNGBrewer:
         self.vehicle = Vehicle('ego_vehicle', model='etk800', licence='TIG', color='Red')
         return self.vehicle
     
-    def modify_terrain(self, road_points, control: ControlApi, fade_dist=10):
+    def modify_terrain(self, road_points, control: ControlApi, fade_dist=15):
         terrain_z = -28.0
         road3d = np.array([[x, y, z] for x,y,z,_ in road_points])
         road2d = road3d[:, :2]
         road_z  = road3d[:, 2]
 
-        total_width = road_points[0][3] + 5
+        total_width = road_points[0][3] + 10
         half_width = total_width/2
 
         def height_at(point):

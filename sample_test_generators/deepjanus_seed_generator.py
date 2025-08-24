@@ -19,6 +19,44 @@ from self_driving.road_polygon import RoadPolygon
 Tuple4F = Tuple[float, float, float, float]
 Tuple2F = Tuple[float, float]
 
+import os
+import time
+import matplotlib.pyplot as plt
+from typing import List, Tuple, Optional
+
+def plot_nodes(nodes: List[Tuple[float, float, float, float]], 
+               interpolated_nodes: Optional[List[Tuple[float, float, float, float]]] = None):
+
+    x_main = [n[0] for n in nodes]
+    y_main = [n[1] for n in nodes]
+
+    os.makedirs("plots", exist_ok=True)
+
+    fig, ax = plt.subplots()
+
+    if interpolated_nodes and len(interpolated_nodes) > 0:
+        x_interp = [n[0] for n in interpolated_nodes]
+        y_interp = [n[1] for n in interpolated_nodes]
+        ax.scatter(x_interp, y_interp, color='gray', s=10, zorder=1)
+
+    ax.scatter(x_main, y_main, color='red', s=30, zorder=2)
+
+    ax.set_xlim(-20, 220)
+    ax.set_ylim(-20, 220)
+    inner_square = plt.Rectangle((0, 0), 200, 200, fill=False, edgecolor='black', linewidth=1, zorder=0)
+    ax.add_patch(inner_square)
+
+    ax.set_aspect('equal', adjustable='box')
+    ax.grid(False)
+
+    epoch_time = int(time.time())
+    filename = f"{epoch_time}_inter.png" if interpolated_nodes and len(interpolated_nodes) > 0 else f"{epoch_time}.png"
+    save_path = os.path.join("plots", filename)
+
+    plt.savefig(save_path, dpi=300)
+    plt.close(fig)
+
+    print(f"Immagine salvata in: {save_path}")
 
 def catmull_rom_spline(p0, p1, p2, p3, num_points=20):
     """p0, p1, p2, and p3 should be (x,y,z) point pairs that define the Catmull-Rom spline.
@@ -86,6 +124,7 @@ class RoadGenerator:
     NUM_UNDO_ATTEMPTS = 20
     MAX_Z_VARIATION = 6.0  # max variation for segment
     MAX_SLOPE = 0.3  # max slope/distance ratio
+    GROUND_LEVEL = -28.0
 
     def __init__(self, num_control_nodes=15, max_angle=None, seg_length=None,
                  num_spline_nodes=None, initial_node=(125.0, 0.0, -28.0, 8.0),
@@ -157,15 +196,11 @@ class RoadGenerator:
 
     def generate(self):
         sample_nodes = None
-        condition = True
-        while condition:
+        while not self.is_valid(control_nodes, sample_nodes, self.num_spline_nodes):
             control_nodes = self.generate_control_nodes()
             control_nodes = control_nodes[1:]
             control_nodes[1] = (control_nodes[1][0], control_nodes[1][1], control_nodes[0][2], control_nodes[1][3])
             sample_nodes = catmull_rom(control_nodes, self.num_spline_nodes)
-            if self.is_valid(control_nodes, sample_nodes, self.num_spline_nodes):
-                condition = False
-
         road = [(node[0], node[1], node[2]) for node in sample_nodes]
         return road
 
@@ -192,7 +227,7 @@ class RoadGenerator:
         return x0 + self.seg_length * math.cos(angle_rad), y0 + self.seg_length * math.sin(angle_rad)
 
     def _get_next_z(self, z0: float) -> float:
-        return max((z0 + uniform(-self.MAX_Z_VARIATION, self.MAX_Z_VARIATION)), -28.0)
+        return max((z0 + uniform(-self.MAX_Z_VARIATION, self.MAX_Z_VARIATION)), self.GROUND_LEVEL)
 
     def _get_next_max_angle(self, i: int, threshold=NUM_INITIAL_SEGMENTS_THRESHOLD) -> float:
         if i < threshold or i == self.num_control_nodes - 1:

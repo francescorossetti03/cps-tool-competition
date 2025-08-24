@@ -133,3 +133,4 @@ dmypy.json
 .pyre/
 results/
 simulations/
+plots/
